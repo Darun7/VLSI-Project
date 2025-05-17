@@ -1,0 +1,641 @@
+Bit Generator:
+module bitstream_generator (
+    input wire clk,
+    input wire reset,
+    output reg [3:0] data // Modified for 16-QAM (4-bit data)
+);
+    always @(posedge clk or posedge reset) begin
+        if (reset)
+            data <= 4'b0000; // Reset to zero
+        else
+            data <= data + 1; // Increment sequentially from 0000 to 1111
+    end
+endmodule
+
+
+16 QAM:
+module qam16_mapper (
+    input  wire [3:0] in_data,
+    output reg  [15:0] i_out,  // In-phase component as a 16-bit value
+    output reg  [15:0] q_out   // Quadrature component as a 16-bit value
+);
+
+    always @(*) begin
+        case (in_data)
+            4'b0000: begin
+                i_out = 16'h0014; // 20 decimal → 0014
+                q_out = 16'h0028; // 40 decimal → 0028
+            end
+            4'b0001: begin
+                i_out = 16'h000A; // 10 decimal → 000A
+                q_out = 16'h0028;
+            end
+            4'b0010: begin
+                i_out = 16'h0028;
+                q_out = 16'h0028;
+            end
+            4'b0011: begin
+                i_out = 16'h001E; // 30 decimal → 001E
+                q_out = 16'h0028;
+            end
+            4'b0100: begin
+                i_out = 16'h0014;
+                q_out = 16'h001E;
+            end
+            4'b0101: begin
+                i_out = 16'h000A;
+                q_out = 16'h001E;
+            end
+            4'b0110: begin
+                i_out = 16'h0028;
+                q_out = 16'h001E;
+            end
+            4'b0111: begin
+                i_out = 16'h001E;
+                q_out = 16'h001E;
+            end
+            4'b1000: begin
+                i_out = 16'h0014;
+                q_out = 16'h0014;
+            end
+            4'b1001: begin
+                i_out = 16'h000A;
+                q_out = 16'h0014;
+            end
+            4'b1010: begin
+                i_out = 16'h0028;
+                q_out = 16'h0014;
+            end
+            4'b1011: begin
+                i_out = 16'h001E;
+                q_out = 16'h0014;
+            end
+            4'b1100: begin
+                i_out = 16'h0014;
+                q_out = 16'h000A;
+            end
+            4'b1101: begin
+                i_out = 16'h000A;
+                q_out = 16'h000A;
+            end
+            4'b1110: begin
+                i_out = 16'h0028;
+                q_out = 16'h000A;
+            end
+            4'b1111: begin
+                i_out = 16'h001E;
+                q_out = 16'h000A;
+            end
+            default: begin
+                i_out = 16'h0000;
+                q_out = 16'h0000;
+            end
+        endcase
+    end
+
+endmodule
+
+
+Symbol Generator:
+
+module symbol_generator_dual (
+    input  wire [15:0] in_phase,   // 16-bit in-phase input (e.g., 0014)
+    input  wire [15:0] quad_phase, // 16-bit quadrature input (e.g., 0028)
+    output wire [63:0] out_phase,  // 64-bit in-phase output (e.g., 0014001400140014)
+    output wire [63:0] out_quad    // 64-bit quadrature output (e.g., 0028002800280028)
+);
+    // Replicate the 16-bit inputs four times to form 64-bit outputs.
+    assign out_phase = {in_phase, in_phase, in_phase, in_phase};
+    assign out_quad  = {quad_phase, quad_phase, quad_phase, quad_phase};
+endmodule
+
+
+Zero Padding:
+
+module zero_padding_dual (
+    input  wire [63:0] in_phase,   // 64-bit in-phase input
+    input  wire [63:0] in_quad,    // 64-bit quadrature input
+    output wire [127:0] out_phase, // 128-bit in-phase output after padding
+    output wire [127:0] out_quad   // 128-bit quadrature output after padding
+);
+    assign out_phase = {32'b0, in_phase, 32'b0};
+    assign out_quad  = {32'b0, in_quad, 32'b0};
+endmodule
+
+
+IFFT:
+
+// This module performs a special-case 8-point IFFT on a 128-bit frequency-domain input.
+// It assumes that the input is organized as eight 16-bit words: [0, 0, A, A, A, A, 0, 0].
+// With a scaling factor of 1/8, the ideal time-domain output is eight identical 16-bit words equal to A/2.
+module ifft8_constant(
+    input  wire [127:0] freq_in,   // 128-bit frequency-domain input (8 x 16-bit words)
+    output reg  [127:0] time_out   // 128-bit time-domain output (8 x 16-bit words)
+);
+    reg [15:0] X [0:7];  // Array to hold 8 frequency-domain 16-bit words
+    reg [15:0] A;        // Active value (assumed to be in word[2])
+    integer i;
+    
+    always @(*) begin
+        // Unpack the 128-bit input into eight 16-bit words.
+        X[7] = freq_in[127:112];
+        X[6] = freq_in[111:96];
+        X[5] = freq_in[95:80];
+        X[4] = freq_in[79:64];
+        X[3] = freq_in[63:48];
+        X[2] = freq_in[47:32];
+        X[1] = freq_in[31:16];
+        X[0] = freq_in[15:0];
+        
+        // Assume the active value A is stored in word[2] (and words[3-5] are equal).
+        A = X[2];
+        
+        // With scaling factor 1/8, the ideal time-domain output for each sample is:
+        // (A + A + A + A)/8 = A/2. (We compute A/2 using a right shift.)
+        for (i = 0; i < 8; i = i + 1)
+            X[i] = A >> 1;  // A/2
+        
+        // Pack the eight identical 16-bit samples into a 128-bit output.
+        time_out = {X[7], X[6], X[5], X[4], X[3], X[2], X[1], X[0]};
+    end
+endmodule
+
+// Dual-channel IFFT module: processes in-phase and quadrature inputs separately.
+module dual_ifft8(
+    input  wire [127:0] freq_in_phase,  // 128-bit frequency-domain in-phase input
+    input  wire [127:0] freq_in_quad,   // 128-bit frequency-domain quadrature input
+    output wire [127:0] time_out_phase, // 128-bit time-domain in-phase output
+    output wire [127:0] time_out_quad   // 128-bit time-domain quadrature output
+);
+    // Instantiate the IFFT for the in-phase channel.
+    ifft8_constant ifft_phase (
+        .freq_in(freq_in_phase),
+        .time_out(time_out_phase)
+    );
+    
+    // Instantiate the IFFT for the quadrature channel.
+    ifft8_constant ifft_quad (
+        .freq_in(freq_in_quad),
+        .time_out(time_out_quad)
+    );
+endmodule
+
+
+CYCLIC PREFIX:
+
+module cyclic_prefix_256(
+    input  wire [127:0] phase,      // 128-bit In-phase input
+    input  wire [127:0] quad,       // 128-bit Quadrature input
+    output wire [303:0] symbol_out  // 304-bit output
+);
+    // Concatenate the two 128-bit inputs into a 256-bit word.
+    // We assume the ordering: phase forms the MSB and quad forms the LSB.
+    wire [255:0] symbol_in = {phase, quad};
+    
+    // Copy the last 48 bits (i.e. the least-significant 48 bits) from symbol_in
+    // and prepend them to symbol_in. This yields a final width of 48+256 = 304 bits.
+    assign symbol_out = { symbol_in[47:0], symbol_in };
+endmodule
+
+
+OUTPUT MODULE:
+
+module output_module_304to16 (
+    input  wire         clk,
+    input  wire         reset,
+    input  wire         valid_in,    // Indicates new 304-bit data is available
+    output reg          ready_out,   // High when module is ready for new data
+    input  wire [303:0] data_in,     // 304-bit input data
+    output reg  [15:0]  data_out,    // 16-bit output data (one chunk)
+    output reg          valid_out,   // High when data_out is valid
+    output reg          done         // High for one clock when entire 304 bits have been sent
+);
+
+    localparam NUM_CHUNKS = 19; // 304 / 16
+
+    reg [4:0] chunk_index;      // To count 0..18
+    reg       sending;          // Indicates we are transmitting a symbol
+
+    always @(posedge clk or posedge reset) begin
+        if (reset) begin
+            chunk_index <= 5'd0;
+            data_out    <= 16'd0;
+            valid_out   <= 1'b0;
+            done        <= 1'b0;
+            sending     <= 1'b0;
+            ready_out   <= 1'b1;
+        end else begin
+            done <= 1'b0;  // default
+
+            if (!sending) begin
+                ready_out <= 1'b1;
+                valid_out <= 1'b0;
+                if (valid_in) begin
+                    // Latch new data and start transmission
+                    sending     <= 1'b1;
+                    chunk_index <= 5'd0;
+                    ready_out   <= 1'b0;
+                    valid_out   <= 1'b1;
+                    data_out    <= data_in[15:0];  // first chunk (bits [15:0])
+                end
+            end else begin
+                // Currently sending a symbol (19 chunks total)
+                if (chunk_index == NUM_CHUNKS - 1) begin
+                    // Last chunk was sent on the previous cycle
+                    sending   <= 1'b0;
+                    valid_out <= 1'b0;
+                    done      <= 1'b1;
+                    ready_out <= 1'b1;
+                    chunk_index <= 5'd0;
+                end else begin
+                    chunk_index <= chunk_index + 5'd1;
+                    // For chunk n (0-indexed), output bits [(n+1)*16-1 : n*16]
+                    // Use the Verilog bit-slicing [start -: width]
+                    data_out <= data_in[((chunk_index + 1)*16) - 1 -: 16];
+                    valid_out <= 1'b1;
+                end
+            end
+        end
+    end
+endmodule
+
+
+TOP TRANSMITTER:
+module transmitter_top_all (
+    input  wire        clk,
+    input  wire        reset,
+    // Expose all intermediate outputs:
+    output wire [3:0]  bitstream_out,   // From bitstream generator
+    output wire [15:0] qam_i,           // QAM Mapper in-phase
+    output wire [15:0] qam_q,           // QAM Mapper quadrature
+    output wire [63:0] sym_phase,       // Symbol generator in-phase
+    output wire [63:0] sym_quad,        // Symbol generator quadrature
+    output wire [127:0] pad_phase,      // Zero padding in-phase
+    output wire [127:0] pad_quad,       // Zero padding quadrature
+    output wire [127:0] ifft_phase,     // IFFT in-phase output
+    output wire [127:0] ifft_quad,      // IFFT quadrature output
+    output wire [303:0] cp_symbol,      // Cyclic prefix output
+    // Serializer outputs
+    output wire [15:0] serializer_data_out,
+    output wire        serializer_valid_out,
+    output wire        serializer_done,
+    output wire        serializer_ready
+);
+
+    // Internal signals for connecting blocks
+    wire [3:0]   bs_data;
+    wire [15:0]  qam_i_int, qam_q_int;
+    wire [63:0]  sym_phase_int, sym_quad_int;
+    wire [127:0] pad_phase_int, pad_quad_int;
+    wire [127:0] time_phase, time_quad;
+    wire [303:0] cp_symbol_int;
+
+    // Instantiate Bitstream Generator (4-bit generator)
+    bitstream_generator bs_gen (
+        .clk(clk),
+        .reset(reset),
+        .data(bs_data)
+    );
+    assign bitstream_out = bs_data;
+
+    // Instantiate 16-QAM Mapper
+    qam16_mapper qam_map (
+        .in_data(bs_data),
+        .i_out(qam_i_int),
+        .q_out(qam_q_int)
+    );
+    assign qam_i = qam_i_int;
+    assign qam_q = qam_q_int;
+
+    // Instantiate Symbol Generator (dual-channel: replicates 16-bit to 64-bit)
+    symbol_generator_dual sym_gen (
+        .in_phase(qam_i_int),
+        .quad_phase(qam_q_int),
+        .out_phase(sym_phase_int),
+        .out_quad(sym_quad_int)
+    );
+    assign sym_phase = sym_phase_int;
+    assign sym_quad  = sym_quad_int;
+
+    // Instantiate Zero Padding (dual-channel: pads 64-bit inputs to 128-bit)
+    zero_padding_dual pad_inst (
+        .in_phase(sym_phase_int),
+        .in_quad(sym_quad_int),
+        .out_phase(pad_phase_int),
+        .out_quad(pad_quad_int)
+    );
+    assign pad_phase = pad_phase_int;
+    assign pad_quad  = pad_quad_int;
+
+    // Instantiate Dual IFFT (processes in-phase and quadrature channels separately)
+    dual_ifft8 ifft_inst (
+        .freq_in_phase(pad_phase_int),
+        .freq_in_quad(pad_quad_int),
+        .time_out_phase(time_phase),
+        .time_out_quad(time_quad)
+    );
+    assign ifft_phase = time_phase;
+    assign ifft_quad  = time_quad;
+
+    // Instantiate Cyclic Prefix Adder
+    cyclic_prefix_256 cp_inst (
+        .phase(time_phase),
+        .quad(time_quad),
+        .symbol_out(cp_symbol_int)
+    );
+    assign cp_symbol = cp_symbol_int;
+
+    // In this example, assume a symbol is always ready (i.e. symbol_valid is high).
+    wire symbol_valid = 1'b1;
+
+    // Instantiate the Output Serializer (converts 304-bit symbol to 16-bit chunks)
+    output_module_304to16 out_mod (
+        .clk(clk),
+        .reset(reset),
+        .valid_in(symbol_valid),
+        .data_in(cp_symbol_int),
+        .data_out(serializer_data_out),
+        .valid_out(serializer_valid_out),
+        .done(serializer_done),
+        .ready_out(serializer_ready)
+    );
+
+endmodule
+
+
+
+
+
+
+RECEIVER:
+
+INVERSE CYCLIC PREFIX:
+module inverse_cyclic_prefix (
+    input  wire [303:0] symbol_out, // 304-bit input
+    output wire [127:0] I_FFT,      // 128-bit In-phase output
+    output wire [127:0] Q_FFT       // 128-bit Quadrature output
+);
+
+    // Remove first 48 bits (MSB)
+    wire [255:0] useful_data;
+    assign useful_data = symbol_out[255:0]; // Keep last 256 bits
+
+    // Split into I_FFT and Q_FFT
+    assign I_FFT = useful_data[255:128]; // Upper 128 bits -> I_FFT
+    assign Q_FFT = useful_data[127:0];   // Lower 128 bits -> Q_FFT
+
+endmodule
+
+
+FFT:
+
+module fft8_constant(
+    input  wire [127:0] fft_in,   // 128-bit input
+    output reg  [127:0] fft_out   // 128-bit output
+);
+    reg [15:0] active;
+    
+    always @(*) begin
+        // Extract the active value from word2 (bits [47:32])
+        active = fft_in[47:32];
+        
+        // Build the output: word7, word6, word1, and word0 are zero,
+        // words 5,4,3,2 are set to the active value.
+        fft_out = {16'h0000, 16'h0000, active, active, active, active, 16'h0000, 16'h0000};
+    end
+endmodule
+
+// dual_fft8.v
+// This module instantiates two fft8_constant modules:
+// one for the in-phase channel and one for the quadrature channel.
+module dual_fft8(
+    input  wire [127:0] fft_in_phase,  // 128-bit in-phase input
+    input  wire [127:0] fft_in_quad,   // 128-bit quadrature input
+    output wire [127:0] fft_out_phase, // 128-bit in-phase output
+    output wire [127:0] fft_out_quad   // 128-bit quadrature output
+);
+    fft8_constant fft_phase (
+        .fft_in(fft_in_phase),
+        .fft_out(fft_out_phase)
+    );
+    
+    fft8_constant fft_quad (
+        .fft_in(fft_in_quad),
+        .fft_out(fft_out_quad)
+    );
+endmodule
+
+
+
+INVERSE ZERO PADDING:
+module zero_pad_removal (
+    input  wire [127:0] in_data,  // 128-bit input word
+    output wire [63:0]  out_data  // 64-bit output word
+);
+    // Keep the middle 64 bits: bits [95:32]
+    assign out_data = in_data[95:32];
+endmodule
+
+
+INVERSE SYMBOL GENERATOR:
+
+module inverse_symbol_generator (
+    input  wire [63:0] in_data,  // 64-bit input (4 concatenated copies of QAM symbol)
+    output wire [15:0] out_data  // 16-bit QAM symbol output
+);
+    // Extract the most significant 16-bit segment.
+    assign out_data = in_data[63:48];
+endmodule
+
+
+DEMAPPER:
+
+module qam16_demapper(
+  input  wire [15:0] in_phase,   // 16-bit input from inverse symbol generator (I)
+  input  wire [15:0] quad_phase, // 16-bit input from inverse symbol generator (Q)
+  output reg  [3:0]  demapped_bits // 4-bit recovered data
+);
+
+  reg [1:0] bits_i;
+  reg [1:0] bits_q;
+
+  always @(*) begin
+    // Map In-phase component (I)
+    case(in_phase)
+      16'h0014: bits_i = 2'b00; // 20
+      16'h000a: bits_i = 2'b01; // 10
+      16'h0028: bits_i = 2'b10; // 40
+      16'h001e: bits_i = 2'b11; // 30
+      default:  bits_i = 2'b00;
+    endcase
+
+    // Map Quad-phase component (Q)
+    case(quad_phase)
+      16'h0028: bits_q = 2'b00; // 40
+      16'h001e: bits_q = 2'b01; // 30
+      16'h0014: bits_q = 2'b10; // 20
+      16'h000a: bits_q = 2'b11; // 10
+      default:  bits_q = 2'b00;
+    endcase
+
+    // Combine Q (MSBs) and I (LSBs) to form 4-bit output.
+    demapped_bits = {bits_q, bits_i};
+  end
+
+endmodule
+
+
+TOP RECEIVER:
+
+// Inverse Cyclic Prefix Removal
+module inverse_cyclic_prefix (
+    input  wire [303:0] symbol_out, // 304-bit input (with cyclic prefix)
+    output wire [127:0] I_FFT,      // 128-bit In-phase output
+    output wire [127:0] Q_FFT       // 128-bit Quadrature output
+);
+    // Remove the first 48 bits (MSB); keep the lower 256 bits.
+    wire [255:0] useful_data;
+    assign useful_data = symbol_out[255:0];
+    
+    // Split into I_FFT (upper 128 bits) and Q_FFT (lower 128 bits)
+    assign I_FFT = useful_data[255:128];
+    assign Q_FFT = useful_data[127:0];
+endmodule
+
+// FFT8 Constant: Performs a constant-case "FFT" on an 8-word (16-bit each) vector.
+module fft8_constant(
+    input  wire [127:0] fft_in,   // 128-bit input
+    output reg  [127:0] fft_out   // 128-bit output
+);
+    reg [15:0] active;
+    
+    always @(*) begin
+        // Extract the active value from word2 (bits [47:32])
+        active = fft_in[47:32];
+        // Build the output:
+        // Words 7,6,1,0 are zero; words 5,4,3,2 are set to active.
+        fft_out = {16'h0000, 16'h0000, active, active, active, active, 16'h0000, 16'h0000};
+    end
+endmodule
+
+// Dual FFT8: Instantiates two fft8_constant modules, one for each channel.
+module dual_fft8(
+    input  wire [127:0] fft_in_phase,  // In-phase 128-bit input
+    input  wire [127:0] fft_in_quad,   // Quadrature 128-bit input
+    output wire [127:0] fft_out_phase, // In-phase 128-bit output
+    output wire [127:0] fft_out_quad   // Quadrature 128-bit output
+);
+    fft8_constant fft_phase (
+        .fft_in(fft_in_phase),
+        .fft_out(fft_out_phase)
+    );
+    fft8_constant fft_quad (
+        .fft_in(fft_in_quad),
+        .fft_out(fft_out_quad)
+    );
+endmodule
+
+// Zero Pad Removal: Extracts the middle 64 bits (bits [95:32]) from a 128-bit word.
+module zero_pad_removal (
+    input  wire [127:0] in_data,  // 128-bit input
+    output wire [63:0]  out_data  // 64-bit output
+);
+    assign out_data = in_data[95:32];
+endmodule
+
+// Inverse Symbol Generator: Extracts the most significant 16 bits from a 64-bit word.
+module inverse_symbol_generator (
+    input  wire [63:0] in_data,  // 64-bit input (4 copies of a QAM symbol)
+    output wire [15:0] out_data  // 16-bit output (the QAM symbol)
+);
+    assign out_data = in_data[63:48];
+endmodule
+
+// QAM16 Demapper: Maps the 16-bit I and Q symbols back to a 4-bit value.
+module qam16_demapper(
+    input  wire [15:0] in_phase,   // 16-bit in-phase input
+    input  wire [15:0] quad_phase, // 16-bit quadrature input
+    output reg  [3:0]  demapped_bits // 4-bit recovered data
+);
+    reg [1:0] bits_i;
+    reg [1:0] bits_q;
+    
+    always @(*) begin
+        // Map In-phase component (I)
+        case (in_phase)
+          16'h0014: bits_i = 2'b00; // 20
+          16'h000a: bits_i = 2'b01; // 10
+          16'h0028: bits_i = 2'b10; // 40
+          16'h001e: bits_i = 2'b11; // 30
+          default:  bits_i = 2'b00;
+        endcase
+
+        // Map Quadrature component (Q)
+        case (quad_phase)
+          16'h0028: bits_q = 2'b00; // 40
+          16'h001e: bits_q = 2'b01; // 30
+          16'h0014: bits_q = 2'b10; // 20
+          16'h000a: bits_q = 2'b11; // 10
+          default:  bits_q = 2'b00;
+        endcase
+
+        // Combine Q (MSB) and I (LSB) to form the 4-bit output.
+        demapped_bits = {bits_q, bits_i};
+    end
+endmodule
+
+// Top-Level Receiver Module: Connects all receiver blocks.
+module receiver_top_all (
+    input  wire [303:0] symbol_out,  // Received symbol (with cyclic prefix)
+    output wire [127:0] I_FFT,         // Output of inverse cyclic prefix (I)
+    output wire [127:0] Q_FFT,         // Output of inverse cyclic prefix (Q)
+    output wire [127:0] fft_out_I,     // FFT output (I channel)
+    output wire [127:0] fft_out_Q,     // FFT output (Q channel)
+    output wire [63:0]  zero_padded_I,  // Output after zero pad removal (I)
+    output wire [63:0]  zero_padded_Q,  // Output after zero pad removal (Q)
+    output wire [15:0]  symbol_I,       // Inverse symbol generator output (I)
+    output wire [15:0]  symbol_Q,       // Inverse symbol generator output (Q)
+    output wire [3:0]   demapped_bits   // Final 4-bit output (recovered data)
+);
+    // Inverse Cyclic Prefix Removal
+    inverse_cyclic_prefix u1 (
+        .symbol_out(symbol_out),
+        .I_FFT(I_FFT),
+        .Q_FFT(Q_FFT)
+    );
+    
+    // FFT Processing (dual-channel)
+    dual_fft8 u2 (
+        .fft_in_phase(I_FFT),
+        .fft_in_quad(Q_FFT),
+        .fft_out_phase(fft_out_I),
+        .fft_out_quad(fft_out_Q)
+    );
+    
+    // Zero Pad Removal for both channels
+    zero_pad_removal u3 (
+        .in_data(fft_out_I),
+        .out_data(zero_padded_I)
+    );
+    zero_pad_removal u4 (
+        .in_data(fft_out_Q),
+        .out_data(zero_padded_Q)
+    );
+    
+    // Inverse Symbol Generation for both channels
+    inverse_symbol_generator u5 (
+        .in_data(zero_padded_I),
+        .out_data(symbol_I)
+    );
+    inverse_symbol_generator u6 (
+        .in_data(zero_padded_Q),
+        .out_data(symbol_Q)
+    );
+    
+    // QAM16 Demapping: Combine the two symbols to form the final 4-bit value.
+    qam16_demapper u7 (
+        .in_phase(symbol_I),
+        .quad_phase(symbol_Q),
+        .demapped_bits(demapped_bits)
+    );
+endmodule

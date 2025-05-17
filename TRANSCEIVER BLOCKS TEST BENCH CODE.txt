@@ -1,0 +1,1125 @@
+BIT GENERATOR:
+
+module bitstream_generator_tb;
+
+    // Testbench signals
+    reg clk;
+    reg reset;
+    wire [3:0] data;
+
+    // Instantiate the DUT (Device Under Test)
+    bitstream_generator uut (
+        .clk(clk),
+        .reset(reset),
+        .data(data)
+    );
+
+    // Clock generation (50 MHz, 20 ns period)
+    initial begin
+        clk = 0;
+        forever #10 clk = ~clk; // Toggle clock every 10 ns
+    end
+
+    // Test sequence
+    initial begin
+        // Monitor signals
+        $monitor("Time = %0t | Reset = %b | Data = %b", $time, reset, data);
+
+        // Initialize and apply reset
+        reset = 1;        // Apply reset
+        #20;              // Hold reset for 20 ns
+        reset = 0;        // Release reset
+
+        #300;             // Run for 300 ns to observe the sequence
+        $stop;            // End simulation
+    end
+
+endmodule
+
+
+16 QAM:
+
+
+module qam16_mapper_tb;
+
+    reg [3:0] in_data;
+    wire [15:0] i_out, q_out;
+    
+    // Instantiate the QAM16 mapper module
+    qam16_mapper uut (
+        .in_data(in_data),
+        .i_out(i_out),
+        .q_out(q_out)
+    );
+    
+    integer i;
+    initial begin
+        $display("Time\t in_data\t i_out\t q_out");
+        // Iterate through all 16 possible values
+        for (i = 0; i < 16; i = i + 1) begin
+            in_data = i;
+            #10;
+            $display("%0t\t %b\t %04h\t %04h", $time, in_data, i_out, q_out);
+        end
+        $finish;
+    end
+
+endmodule
+
+
+
+SYMBOL GENERATOR:
+
+module symbol_generator_dual_tb;
+
+    reg [15:0] in_phase;
+    reg [15:0] quad_phase;
+    wire [63:0] out_phase;
+    wire [63:0] out_quad;
+    
+    // Instantiate the symbol generator
+    symbol_generator_dual uut (
+        .in_phase(in_phase),
+        .quad_phase(quad_phase),
+        .out_phase(out_phase),
+        .out_quad(out_quad)
+    );
+    
+    // Arrays to hold test values (matching your mapping table)
+    reg [15:0] test_in_phase [0:15];
+    reg [15:0] test_quad_phase [0:15];
+    integer idx;
+    
+    initial begin
+        // Initialize test vectors according to your mapping:
+        // in_data 0: I_out = 0014, Q_out = 0028
+        test_in_phase[0]  = 16'h0014;
+        test_quad_phase[0]  = 16'h0028;
+        
+        // in_data 1: I_out = 000A, Q_out = 0028
+        test_in_phase[1]  = 16'h000A;
+        test_quad_phase[1]  = 16'h0028;
+        
+        // in_data 2: I_out = 0028, Q_out = 0028
+        test_in_phase[2]  = 16'h0028;
+        test_quad_phase[2]  = 16'h0028;
+        
+        // in_data 3: I_out = 001E, Q_out = 0028
+        test_in_phase[3]  = 16'h001E;
+        test_quad_phase[3]  = 16'h0028;
+        
+        // in_data 4: I_out = 0014, Q_out = 001E
+        test_in_phase[4]  = 16'h0014;
+        test_quad_phase[4]  = 16'h001E;
+        
+        // in_data 5: I_out = 000A, Q_out = 001E
+        test_in_phase[5]  = 16'h000A;
+        test_quad_phase[5]  = 16'h001E;
+        
+        // in_data 6: I_out = 0028, Q_out = 001E
+        test_in_phase[6]  = 16'h0028;
+        test_quad_phase[6]  = 16'h001E;
+        
+        // in_data 7: I_out = 001E, Q_out = 001E
+        test_in_phase[7]  = 16'h001E;
+        test_quad_phase[7]  = 16'h001E;
+        
+        // in_data 8: I_out = 0014, Q_out = 0014
+        test_in_phase[8]  = 16'h0014;
+        test_quad_phase[8]  = 16'h0014;
+        
+        // in_data 9: I_out = 000A, Q_out = 0014
+        test_in_phase[9]  = 16'h000A;
+        test_quad_phase[9]  = 16'h0014;
+        
+        // in_data 10: I_out = 0028, Q_out = 0014
+        test_in_phase[10] = 16'h0028;
+        test_quad_phase[10] = 16'h0014;
+        
+        // in_data 11: I_out = 001E, Q_out = 0014
+        test_in_phase[11] = 16'h001E;
+        test_quad_phase[11] = 16'h0014;
+        
+        // in_data 12: I_out = 0014, Q_out = 000A
+        test_in_phase[12] = 16'h0014;
+        test_quad_phase[12] = 16'h000A;
+        
+        // in_data 13: I_out = 000A, Q_out = 000A
+        test_in_phase[13] = 16'h000A;
+        test_quad_phase[13] = 16'h000A;
+        
+        // in_data 14: I_out = 0028, Q_out = 000A
+        test_in_phase[14] = 16'h0028;
+        test_quad_phase[14] = 16'h000A;
+        
+        // in_data 15: I_out = 001E, Q_out = 000A
+        test_in_phase[15] = 16'h001E;
+        test_quad_phase[15] = 16'h000A;
+        
+        // Display table header
+        $display("Idx\t in_phase\t quad_phase\t out_phase\t\t\t\t out_quad");
+        // Iterate through all test cases
+        for (idx = 0; idx < 16; idx = idx + 1) begin
+            in_phase  = test_in_phase[idx];
+            quad_phase = test_quad_phase[idx];
+            #10; // Allow propagation
+            $display("%0d\t %04h\t\t %04h\t\t %016h\t %016h",
+                     idx, in_phase, quad_phase, out_phase, out_quad);
+        end
+        
+        $finish;
+    end
+
+endmodule
+
+
+ZERO PADDING:
+
+module zero_padding_dual_tb;
+
+    reg [63:0] in_phase;
+    reg [63:0] in_quad;
+    wire [127:0] out_phase;
+    wire [127:0] out_quad;
+    
+    // Instantiate the dual zero padding module
+    zero_padding_dual uut (
+        .in_phase(in_phase),
+        .in_quad(in_quad),
+        .out_phase(out_phase),
+        .out_quad(out_quad)
+    );
+    
+    // Arrays to hold the 64-bit test values (from your table)
+    reg [63:0] test_in_phase [0:15];
+    reg [63:0] test_in_quad  [0:15];
+    integer idx;
+    
+    initial begin
+        // Initialize the test arrays using your table values
+        test_in_phase[0]  = 64'h0014001400140014; test_in_quad[0]  = 64'h0028002800280028;
+        test_in_phase[1]  = 64'h000A000A000A000A; test_in_quad[1]  = 64'h0028002800280028;
+        test_in_phase[2]  = 64'h0028002800280028; test_in_quad[2]  = 64'h0028002800280028;
+        test_in_phase[3]  = 64'h001E001E001E001E; test_in_quad[3]  = 64'h0028002800280028;
+        test_in_phase[4]  = 64'h0014001400140014; test_in_quad[4]  = 64'h001E001E001E001E;
+        test_in_phase[5]  = 64'h000A000A000A000A; test_in_quad[5]  = 64'h001E001E001E001E;
+        test_in_phase[6]  = 64'h0028002800280028; test_in_quad[6]  = 64'h001E001E001E001E;
+        test_in_phase[7]  = 64'h001E001E001E001E; test_in_quad[7]  = 64'h001E001E001E001E;
+        test_in_phase[8]  = 64'h0014001400140014; test_in_quad[8]  = 64'h0014001400140014;
+        test_in_phase[9]  = 64'h000A000A000A000A; test_in_quad[9]  = 64'h0014001400140014;
+        test_in_phase[10] = 64'h0028002800280028; test_in_quad[10] = 64'h0014001400140014;
+        test_in_phase[11] = 64'h001E001E001E001E; test_in_quad[11] = 64'h0014001400140014;
+        test_in_phase[12] = 64'h0014001400140014; test_in_quad[12] = 64'h000A000A000A000A;
+        test_in_phase[13] = 64'h000A000A000A000A; test_in_quad[13] = 64'h000A000A000A000A;
+        test_in_phase[14] = 64'h0028002800280028; test_in_quad[14] = 64'h000A000A000A000A;
+        test_in_phase[15] = 64'h001E001E001E001E; test_in_quad[15] = 64'h000A000A000A000A;
+        
+        // Loop through each test case and display only the final padded outputs.
+        for (idx = 0; idx < 16; idx = idx + 1) begin
+            in_phase = test_in_phase[idx];
+            in_quad  = test_in_quad[idx];
+            #10; // wait for propagation
+            $display("%032h   %032h", out_phase, out_quad);
+        end
+        
+        $finish;
+    end
+
+endmodule
+
+
+IFFT:
+
+module dual_ifft8_tb;
+    reg [127:0] freq_in_phase;
+    reg [127:0] freq_in_quad;
+    wire [127:0] time_out_phase;
+    wire [127:0] time_out_quad;
+    integer idx;
+    
+    // Instantiate the dual IFFT module.
+    dual_ifft8 uut (
+        .freq_in_phase(freq_in_phase),
+        .freq_in_quad(freq_in_quad),
+        .time_out_phase(time_out_phase),
+        .time_out_quad(time_out_quad)
+    );
+    
+    // Define arrays of test frequency-domain inputs (128-bit) for in-phase and quadrature.
+    // These values are taken from your table (i.e. the outputs from your zero-padding block).
+    reg [127:0] test_phase [0:15];
+    reg [127:0] test_quad  [0:15];
+    
+    initial begin
+        // Initialize the test vectors as provided.
+        test_phase[0]  = 128'h00000000001400140014001400000000;
+        test_quad[0]   = 128'h00000000002800280028002800000000;
+        
+        test_phase[1]  = 128'h00000000000A000A000A000A00000000;
+        test_quad[1]   = 128'h00000000002800280028002800000000;
+        
+        test_phase[2]  = 128'h00000000002800280028002800000000;
+        test_quad[2]   = 128'h00000000002800280028002800000000;
+        
+        test_phase[3]  = 128'h00000000001E001E001E001E00000000;
+        test_quad[3]   = 128'h00000000002800280028002800000000;
+        
+        test_phase[4]  = 128'h00000000001400140014001400000000;
+        test_quad[4]   = 128'h00000000001E001E001E001E00000000;
+        
+        test_phase[5]  = 128'h00000000000A000A000A000A00000000;
+        test_quad[5]   = 128'h00000000001E001E001E001E00000000;
+        
+        test_phase[6]  = 128'h00000000002800280028002800000000;
+        test_quad[6]   = 128'h00000000001E001E001E001E00000000;
+        
+        test_phase[7]  = 128'h00000000001E001E001E001E00000000;
+        test_quad[7]   = 128'h00000000001E001E001E001E00000000;
+        
+        test_phase[8]  = 128'h00000000001400140014001400000000;
+        test_quad[8]   = 128'h00000000001400140014001400000000;
+        
+        test_phase[9]  = 128'h00000000000A000A000A000A00000000;
+        test_quad[9]   = 128'h00000000001400140014001400000000;
+        
+        test_phase[10] = 128'h00000000002800280028002800000000;
+        test_quad[10]  = 128'h00000000001400140014001400000000;
+        
+        test_phase[11] = 128'h00000000001E001E001E001E00000000;
+        test_quad[11]  = 128'h00000000001400140014001400000000;
+        
+        test_phase[12] = 128'h00000000001400140014001400000000;
+        test_quad[12]  = 128'h00000000000A000A000A000A00000000;
+        
+        test_phase[13] = 128'h00000000000A000A000A000A00000000;
+        test_quad[13]  = 128'h00000000000A000A000A000A00000000;
+        
+        test_phase[14] = 128'h00000000002800280028002800000000;
+        test_quad[14]  = 128'h00000000000A000A000A000A00000000;
+        
+        test_phase[15] = 128'h00000000001E001E001E001E00000000;
+        test_quad[15]  = 128'h00000000000A000A000A000A00000000;
+        
+        // Display header for outputs only.
+        $display("Time_Domain_Output_Phase (128-bit)        Time_Domain_Output_Quad (128-bit)");
+        // Loop through all test cases.
+        for (idx = 0; idx < 16; idx = idx + 1) begin
+            freq_in_phase = test_phase[idx];
+            freq_in_quad  = test_quad[idx];
+            #10;  // Allow propagation.
+            $display("%032h   %032h", time_out_phase, time_out_quad);
+        end
+        $finish;
+    end
+endmodule
+
+
+CYCLIC PREFIX:
+
+
+module cyclic_prefix_256_tb;
+    reg [127:0] phase;
+    reg [127:0] quad;
+    wire [303:0] symbol_out;
+    integer idx;
+    
+    // Instantiate the cyclic prefix module.
+    cyclic_prefix_256 uut (
+        .phase(phase),
+        .quad(quad),
+        .symbol_out(symbol_out)
+    );
+    
+    // Define arrays for the 16 test vectors (each 128 bits) for phase and quad,
+    // taken from your table.
+    reg [127:0] phase_array [0:15];
+    reg [127:0] quad_array  [0:15];
+    
+    initial begin
+        // Index 0
+        phase_array[0] = 128'h000a000a000a000a000a000a000a000a;
+        quad_array[0]  = 128'h00140014001400140014001400140014;
+        // Index 1
+        phase_array[1] = 128'h00050005000500050005000500050005;
+        quad_array[1]  = 128'h00140014001400140014001400140014;
+        // Index 2
+        phase_array[2] = 128'h00140014001400140014001400140014;
+        quad_array[2]  = 128'h00140014001400140014001400140014;
+        // Index 3
+        phase_array[3] = 128'h000f000f000f000f000f000f000f000f;
+        quad_array[3]  = 128'h00140014001400140014001400140014;
+        // Index 4
+        phase_array[4] = 128'h000a000a000a000a000a000a000a000a;
+        quad_array[4]  = 128'h000f000f000f000f000f000f000f000f;
+        // Index 5
+        phase_array[5] = 128'h00050005000500050005000500050005;
+        quad_array[5]  = 128'h000f000f000f000f000f000f000f000f;
+        // Index 6
+        phase_array[6] = 128'h00140014001400140014001400140014;
+        quad_array[6]  = 128'h000f000f000f000f000f000f000f000f;
+        // Index 7
+        phase_array[7] = 128'h000f000f000f000f000f000f000f000f;
+        quad_array[7]  = 128'h000f000f000f000f000f000f000f000f;
+        // Index 8
+        phase_array[8] = 128'h000a000a000a000a000a000a000a000a;
+        quad_array[8]  = 128'h000a000a000a000a000a000a000a000a;
+        // Index 9
+        phase_array[9] = 128'h00050005000500050005000500050005;
+        quad_array[9]  = 128'h000a000a000a000a000a000a000a000a;
+        // Index 10
+        phase_array[10] = 128'h00140014001400140014001400140014;
+        quad_array[10]  = 128'h000a000a000a000a000a000a000a000a;
+        // Index 11
+        phase_array[11] = 128'h000f000f000f000f000f000f000f000f;
+        quad_array[11]  = 128'h000a000a000a000a000a000a000a000a;
+        // Index 12
+        phase_array[12] = 128'h000a000a000a000a000a000a000a000a;
+        quad_array[12]  = 128'h00050005000500050005000500050005;
+        // Index 13
+        phase_array[13] = 128'h00050005000500050005000500050005;
+        quad_array[13]  = 128'h00050005000500050005000500050005;
+        // Index 14
+        phase_array[14] = 128'h00140014001400140014001400140014;
+        quad_array[14]  = 128'h00050005000500050005000500050005;
+        // Index 15
+        phase_array[15] = 128'h000f000f000f000f000f000f000f000f;
+        quad_array[15]  = 128'h00050005000500050005000500050005;
+        
+        $display("Final 304-bit Cyclic Prefix Outputs (76 hex digits each):");
+        // Loop through all test vectors.
+        for (idx = 0; idx < 16; idx = idx + 1) begin
+            phase = phase_array[idx];
+            quad  = quad_array[idx];
+            #10;  // Allow propagation.
+            $display("%076h", symbol_out);
+        end
+        $finish;
+    end
+endmodule
+
+
+OUTPUT MODULE:
+
+module output_module_304to16_tb;
+    reg         clk;
+    reg         reset;
+    reg         valid_in;
+    wire        ready_out;
+    reg  [303:0] data_in;
+    wire [15:0] data_out;
+    wire        valid_out;
+    wire        done;
+    
+    integer i, j;
+    
+    // Instantiate the output module
+    output_module_304to16 uut (
+        .clk(clk),
+        .reset(reset),
+        .valid_in(valid_in),
+        .ready_out(ready_out),
+        .data_in(data_in),
+        .data_out(data_out),
+        .valid_out(valid_out),
+        .done(done)
+    );
+    
+    // Clock generation: 20 ns period.
+    initial begin
+        clk = 0;
+        forever #10 clk = ~clk;
+    end
+    
+    // Define an array of 16 test vectors (304-bit each), exactly 76 hex digits.
+    reg [303:0] test_vectors [0:15];
+    
+    initial begin
+        // TV0
+        test_vectors[0]  = 304'h001400140014000a000a000a000a000a000a000a000a00140014001400140014001400140014;
+        // TV1
+        test_vectors[1]  = 304'h0014001400140005000500050005000500050005000500140014001400140014001400140014;
+        // TV2
+        test_vectors[2]  = 304'h0014001400140014001400140014001400140014001400140014001400140014001400140014;
+        // TV3
+        test_vectors[3]  = 304'h001400140014000f000f000f000f000f000f000f000f00140014001400140014001400140014;
+        // TV4
+        test_vectors[4]  = 304'h000f000f000f000a000a000a000a000a000a000a000a000f000f000f000f000f000f000f000f;
+        // TV5
+        test_vectors[5]  = 304'h000f000f000f00050005000500050005000500050005000f000f000f000f000f000f000f000f;
+        // TV6
+        test_vectors[6]  = 304'h000f000f000f00140014001400140014001400140014000f000f000f000f000f000f000f000f;
+        // TV7
+        test_vectors[7]  = 304'h000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f;
+        // TV8
+        test_vectors[8]  = 304'h000a000a000a000a000a000a000a000a000a000a000a000a000a000a000a000a000a000a000a;
+        // TV9
+        test_vectors[9]  = 304'h000a000a000a00050005000500050005000500050005000a000a000a000a000a000a000a000a;
+        // TV10
+        test_vectors[10] = 304'h000a000a000a00140014001400140014001400140014000a000a000a000a000a000a000a000a;
+        // TV11
+        test_vectors[11] = 304'h000a000a000a000f000f000f000f000f000f000f000f000a000a000a000a000a000a000a000a;
+        // TV12 (updated)
+        test_vectors[12] = 304'h000500050005000a000a000a000a000a000a000a000a00050005000500050005000500050005;
+        // TV13 (updated)
+        test_vectors[13] = 304'h00050005000500050005000500050005000500050005000500050005000500050005000500050005;
+        // TV14
+        test_vectors[14] = 304'h0005000500050014001400140014001400140014001400050005000500050005000500050005;
+        // TV15
+        test_vectors[15] = 304'h000500050005000f000f000f000f000f000f000f000f00050005000500050005000500050005;
+        
+        // Initialize control signals and wait for reset.
+        reset = 1;
+        valid_in = 0;
+        data_in = 304'd0;
+        #40;
+        reset = 0;
+        
+        $display("Final 304-bit Outputs Sent in 16-bit Chunks (Table Format):");
+        // Loop through all 16 test vectors.
+        for (i = 0; i < 16; i = i + 1) begin
+            // Wait until module is ready.
+            @(posedge clk);
+            while (!ready_out)
+                @(posedge clk);
+            
+            // Load test vector and pulse valid_in.
+            data_in = test_vectors[i];
+            valid_in = 1'b1;
+            @(posedge clk);
+            valid_in = 1'b0;
+            
+            // Capture and display the 19 chunks for this test vector.
+            for (j = 0; j < 19; j = j + 1) begin
+                @(posedge clk);
+                if (valid_out)
+                    $display("TV%0d  Chunk %2d: %04h", i, j, data_out);
+            end
+            
+            // Wait for 'done' before moving to the next test vector.
+            while (!done)
+                @(posedge clk);
+            $display("-----------------------------------------------");
+            #20;
+        end
+        
+        // Let simulation run long enough before finishing.
+        #7000;
+        $finish;
+    end
+endmodule
+
+
+
+
+
+TOP TRANSMITTER:
+
+module transmitter_top_all_wave_tb;
+    // Clock and reset signals
+    reg clk;
+    reg reset;
+
+    // Wires to capture all outputs from the transmitter
+    wire [3:0]  bitstream_out;
+    wire [15:0] qam_i, qam_q;
+    wire [63:0] sym_phase, sym_quad;
+    wire [127:0] pad_phase, pad_quad;
+    wire [127:0] ifft_phase, ifft_quad;
+    wire [303:0] cp_symbol;
+    wire [15:0] serializer_data_out;
+    wire        serializer_valid_out;
+    wire        serializer_done;
+    wire        serializer_ready;
+    
+    // Instantiate the top-level transmitter module with all signals exposed
+    transmitter_top_all uut (
+        .clk(clk),
+        .reset(reset),
+        .bitstream_out(bitstream_out),
+        .qam_i(qam_i),
+        .qam_q(qam_q),
+        .sym_phase(sym_phase),
+        .sym_quad(sym_quad),
+        .pad_phase(pad_phase),
+        .pad_quad(pad_quad),
+        .ifft_phase(ifft_phase),
+        .ifft_quad(ifft_quad),
+        .cp_symbol(cp_symbol),
+        .serializer_data_out(serializer_data_out),
+        .serializer_valid_out(serializer_valid_out),
+        .serializer_done(serializer_done),
+        .serializer_ready(serializer_ready)
+    );
+    
+    // Dump all signals to a VCD file for waveform viewing
+    initial begin
+        $dumpfile("transmitter.vcd");
+        // Dump all variables in this testbench hierarchy (level 0)
+        $dumpvars(0, transmitter_top_all_wave_tb);
+    end
+
+    // Clock generation: 50MHz (20 ns period)
+    initial begin
+        clk = 0;
+        forever #10 clk = ~clk;
+    end
+    
+    // Reset generation and simulation control
+    initial begin
+        reset = 1;
+        #30;       // Hold reset for 30 ns
+        reset = 0;
+        #1000;     // Run simulation long enough to observe several symbol cycles
+        $finish;
+    end
+
+endmodule
+
+
+
+RECEIVER:
+
+INVERSE CYCLIC PREFIX:
+
+`timescale 1ns / 1ps
+
+module tb_inverse_cyclic_prefix();
+
+    // Testbench signals
+    reg [303:0] symbol_out;
+    wire [127:0] I_FFT;
+    wire [127:0] Q_FFT;
+    
+    // Instantiate the module
+    inverse_cyclic_prefix uut (
+        .symbol_out(symbol_out),
+        .I_FFT(I_FFT),
+        .Q_FFT(Q_FFT)
+    );
+
+    // Test vector array (16 values)
+    reg [303:0] test_vectors [0:15];
+    integer i;
+
+    initial begin
+        // Initialize test vectors
+        test_vectors[0]  = 304'h001400140014000a000a000a000a000a000a000a000a00140014001400140014001400140014;
+        test_vectors[1]  = 304'h0014001400140005000500050005000500050005000500140014001400140014001400140014;
+        test_vectors[2]  = 304'h0014001400140014001400140014001400140014001400140014001400140014001400140014;
+        test_vectors[3]  = 304'h001400140014000f000f000f000f000f000f000f000f00140014001400140014001400140014;
+        test_vectors[4]  = 304'h000f000f000f000a000a000a000a000a000a000a000a000f000f000f000f000f000f000f000f;
+        test_vectors[5]  = 304'h000f000f000f00050005000500050005000500050005000f000f000f000f000f000f000f000f;
+        test_vectors[6]  = 304'h000f000f000f00140014001400140014001400140014000f000f000f000f000f000f000f000f;
+        test_vectors[7]  = 304'h000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f;
+        test_vectors[8]  = 304'h000a000a000a000a000a000a000a000a000a000a000a000a000a000a000a000a000a000a000a;
+        test_vectors[9]  = 304'h000a000a000a00050005000500050005000500050005000a000a000a000a000a000a000a000a;
+        test_vectors[10] = 304'h000a000a000a00140014001400140014001400140014000a000a000a000a000a000a000a000a;
+        test_vectors[11] = 304'h000a000a000a000f000f000f000f000f000f000f000f000a000a000a000a000a000a000a000a;
+        test_vectors[12] = 304'h000500050005000a000a000a000a000a000a000a000a00050005000500050005000500050005;
+        test_vectors[13] = 304'h0005000500050005000500050005000500050005000500050005000500050005000500050005;
+        test_vectors[14] = 304'h0005000500050014001400140014001400140014001400050005000500050005000500050005;
+        test_vectors[15] = 304'h000500050005000f000f000f000f000f000f000f000f00050005000500050005000500050005;
+
+        // Apply each test vector
+        for (i = 0; i < 16; i = i + 1) begin
+            symbol_out = test_vectors[i];
+            #10; // Wait for processing
+            $display("Test %0d: I_FFT = %h, Q_FFT = %h", i, I_FFT, Q_FFT);
+        end
+
+        // Finish simulation
+        $finish;
+    end
+
+endmodule
+
+
+FFT:
+
+// dual_fft8_tb.v
+// Testbench for the dual_fft8 module.
+// The test vectors place the active value in word2 (bits [47:32])
+// so that the expected output is: {0, 0, active, active, active, active, 0, 0}
+module dual_fft8_tb;
+    reg [127:0] fft_in_phase;
+    reg [127:0] fft_in_quad;
+    wire [127:0] fft_out_phase;
+    wire [127:0] fft_out_quad;
+    integer i;
+    
+    // Instantiate the dual channel FFT module.
+    dual_fft8 uut (
+        .fft_in_phase(fft_in_phase),
+        .fft_in_quad(fft_in_quad),
+        .fft_out_phase(fft_out_phase),
+        .fft_out_quad(fft_out_quad)
+    );
+    
+    // Define arrays of 128-bit test vectors.
+    // The active value is placed in word2 (bits [47:32]), while the rest is zero.
+    reg [127:0] test_phase [0:15];
+    reg [127:0] test_quad  [0:15];
+    
+    initial begin
+        // In-Phase Test Vectors:
+        // Index: active value (A)
+        // 0 -> 0x0014, 1 -> 0x000A, 2 -> 0x0028, 3 -> 0x001E, 4 -> 0x0014, 
+        // 5 -> 0x000A, 6 -> 0x0028, 7 -> 0x001E, 8 -> 0x0014, 9 -> 0x000A,
+        // 10 -> 0x0028, 11 -> 0x001E, 12 -> 0x0014, 13 -> 0x000A, 14 -> 0x0028, 15 -> 0x001E.
+        test_phase[0]  = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0014, 16'h0000, 16'h0000};
+        test_phase[1]  = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h000A, 16'h0000, 16'h0000};
+        test_phase[2]  = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0028, 16'h0000, 16'h0000};
+        test_phase[3]  = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h001E, 16'h0000, 16'h0000};
+        test_phase[4]  = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0014, 16'h0000, 16'h0000};
+        test_phase[5]  = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h000A, 16'h0000, 16'h0000};
+        test_phase[6]  = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0028, 16'h0000, 16'h0000};
+        test_phase[7]  = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h001E, 16'h0000, 16'h0000};
+        test_phase[8]  = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0014, 16'h0000, 16'h0000};
+        test_phase[9]  = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h000A, 16'h0000, 16'h0000};
+        test_phase[10] = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0028, 16'h0000, 16'h0000};
+        test_phase[11] = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h001E, 16'h0000, 16'h0000};
+        test_phase[12] = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0014, 16'h0000, 16'h0000};
+        test_phase[13] = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h000A, 16'h0000, 16'h0000};
+        test_phase[14] = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0028, 16'h0000, 16'h0000};
+        test_phase[15] = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h001E, 16'h0000, 16'h0000};
+        
+        // Quad-Phase Test Vectors:
+        // For quad phase the active values are:
+        // Indices 0-3: 0x0028, Indices 4-7: 0x001E,
+        // Indices 8-11: 0x0014, Indices 12-15: 0x000A.
+        test_quad[0]  = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0028, 16'h0000, 16'h0000};
+        test_quad[1]  = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0028, 16'h0000, 16'h0000};
+        test_quad[2]  = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0028, 16'h0000, 16'h0000};
+        test_quad[3]  = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0028, 16'h0000, 16'h0000};
+        test_quad[4]  = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h001E, 16'h0000, 16'h0000};
+        test_quad[5]  = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h001E, 16'h0000, 16'h0000};
+        test_quad[6]  = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h001E, 16'h0000, 16'h0000};
+        test_quad[7]  = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h001E, 16'h0000, 16'h0000};
+        test_quad[8]  = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0014, 16'h0000, 16'h0000};
+        test_quad[9]  = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0014, 16'h0000, 16'h0000};
+        test_quad[10] = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0014, 16'h0000, 16'h0000};
+        test_quad[11] = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0014, 16'h0000, 16'h0000};
+        test_quad[12] = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h000A, 16'h0000, 16'h0000};
+        test_quad[13] = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h000A, 16'h0000, 16'h0000};
+        test_quad[14] = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h000A, 16'h0000, 16'h0000};
+        test_quad[15] = {16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h000A, 16'h0000, 16'h0000};
+        
+        // Display header.
+        $display("Index  FFT_Out_Phase (128-bit)                 FFT_Out_Quad (128-bit)");
+        // Loop through test cases.
+        for (i = 0; i < 16; i = i + 1) begin
+            fft_in_phase = test_phase[i];
+            fft_in_quad  = test_quad[i];
+            #10;  // Allow propagation.
+            $display("Index %0d: %032h   %032h", i, fft_out_phase, fft_out_quad);
+        end
+        $finish;
+    end
+endmodule
+
+
+
+INVERSE ZERO PADDING:
+
+`timescale 1ns/1ps
+module tb_zero_pad_removal;
+
+    // Declare arrays to store all 16 values for In-phase and Quad-phase inputs.
+    reg [127:0] in_phase_array [0:15];
+    reg [127:0] quad_phase_array [0:15];
+    
+    // Declare registers to drive the DUT inputs.
+    reg [127:0] in_data_inphase;
+    reg [127:0] in_data_quad;
+    
+    // Wires to capture the outputs.
+    wire [63:0] out_inphase;
+    wire [63:0] out_quad;
+
+    // Instantiate the DUT for In-phase data.
+    zero_pad_removal uut_in (
+        .in_data(in_data_inphase),
+        .out_data(out_inphase)
+    );
+
+    // Instantiate the DUT for Quad-phase data.
+    zero_pad_removal uut_quad (
+        .in_data(in_data_quad),
+        .out_data(out_quad)
+    );
+
+    integer i; // loop index
+
+    initial begin
+        // Initialize the In-phase input array (128-bit values)
+        in_phase_array[0]  = 128'h00000000001400140014001400000000;
+        in_phase_array[1]  = 128'h00000000000a000a000a000a00000000;
+        in_phase_array[2]  = 128'h00000000002800280028002800000000;
+        in_phase_array[3]  = 128'h00000000001e001e001e001e00000000;
+        in_phase_array[4]  = 128'h00000000001400140014001400000000;
+        in_phase_array[5]  = 128'h00000000000a000a000a000a00000000;
+        in_phase_array[6]  = 128'h00000000002800280028002800000000;
+        in_phase_array[7]  = 128'h00000000001e001e001e001e00000000;
+        in_phase_array[8]  = 128'h00000000001400140014001400000000;
+        in_phase_array[9]  = 128'h00000000000a000a000a000a00000000;
+        in_phase_array[10] = 128'h00000000002800280028002800000000;
+        in_phase_array[11] = 128'h00000000001e001e001e001e00000000;
+        in_phase_array[12] = 128'h00000000001400140014001400000000;
+        in_phase_array[13] = 128'h00000000000a000a000a000a00000000;
+        in_phase_array[14] = 128'h00000000002800280028002800000000;
+        in_phase_array[15] = 128'h00000000001e001e001e001e00000000;
+
+        // Initialize the Quad-phase input array (128-bit values)
+        quad_phase_array[0]  = 128'h00000000002800280028002800000000;
+        quad_phase_array[1]  = 128'h00000000002800280028002800000000;
+        quad_phase_array[2]  = 128'h00000000002800280028002800000000;
+        quad_phase_array[3]  = 128'h00000000002800280028002800000000;
+        quad_phase_array[4]  = 128'h00000000001e001e001e001e00000000;
+        quad_phase_array[5]  = 128'h00000000001e001e001e001e00000000;
+        quad_phase_array[6]  = 128'h00000000001e001e001e001e00000000;
+        quad_phase_array[7]  = 128'h00000000001e001e001e001e00000000;
+        quad_phase_array[8]  = 128'h00000000001400140014001400000000;
+        quad_phase_array[9]  = 128'h00000000001400140014001400000000;
+        quad_phase_array[10] = 128'h00000000001400140014001400000000;
+        quad_phase_array[11] = 128'h00000000001400140014001400000000;
+        quad_phase_array[12] = 128'h00000000000a000a000a000a00000000;
+        quad_phase_array[13] = 128'h00000000000a000a000a000a00000000;
+        quad_phase_array[14] = 128'h00000000000a000a000a000a00000000;
+        quad_phase_array[15] = 128'h00000000000a000a000a000a00000000;
+
+        // Display header for clarity.
+        $display("Index\tFFT_Out_In (128-bit)\t\t\tFFT_Out_In (64-bit)\t\tFFT_Out_Quad (128-bit)\t\t\tFFT_Out_Quad (64-bit)");
+
+        // Loop through each index, assign inputs, wait for propagation, and display results.
+        for (i = 0; i < 16; i = i + 1) begin
+            in_data_inphase = in_phase_array[i];
+            in_data_quad    = quad_phase_array[i];
+            #10; // wait for outputs to update
+            $display("%0d\t%h\t%h\t%h\t%h", i, in_data_inphase, out_inphase, in_data_quad, out_quad);
+        end
+
+        $finish;
+    end
+
+endmodule
+
+
+INVERse symbol generator:
+
+`timescale 1ns/1ps
+module tb_inverse_symbol_generator;
+
+    // Arrays holding the 64-bit inputs for In-phase and Quad-phase data.
+    reg [63:0] in_phase_array [0:15];
+    reg [63:0] quad_phase_array [0:15];
+    
+    // Registers to drive the module inputs.
+    reg [63:0] in_data_inphase;
+    reg [63:0] in_data_quad;
+    
+    // Wires to capture the 16-bit outputs.
+    wire [15:0] out_inphase;
+    wire [15:0] out_quad;
+    
+    // Instantiate the inverse symbol generator for In-phase.
+    inverse_symbol_generator uut_in (
+        .in_data(in_data_inphase),
+        .out_data(out_inphase)
+    );
+    
+    // Instantiate the inverse symbol generator for Quad-phase.
+    inverse_symbol_generator uut_quad (
+        .in_data(in_data_quad),
+        .out_data(out_quad)
+    );
+    
+    integer i;  // Loop index
+    
+    initial begin
+        // Initialize the In-phase array (from CSV table)
+        in_phase_array[0]  = 64'h0014001400140014;
+        in_phase_array[1]  = 64'h000a000a000a000a;
+        in_phase_array[2]  = 64'h0028002800280028;
+        in_phase_array[3]  = 64'h001e001e001e001e;
+        in_phase_array[4]  = 64'h0014001400140014;
+        in_phase_array[5]  = 64'h000a000a000a000a;
+        in_phase_array[6]  = 64'h0028002800280028;
+        in_phase_array[7]  = 64'h001e001e001e001e;
+        in_phase_array[8]  = 64'h0014001400140014;
+        in_phase_array[9]  = 64'h000a000a000a000a;
+        in_phase_array[10] = 64'h0028002800280028;
+        in_phase_array[11] = 64'h001e001e001e001e;
+        in_phase_array[12] = 64'h0014001400140014;
+        in_phase_array[13] = 64'h000a000a000a000a;
+        in_phase_array[14] = 64'h0028002800280028;
+        in_phase_array[15] = 64'h001e001e001e001e;
+        
+        // Initialize the Quad-phase array (from CSV table)
+        quad_phase_array[0]  = 64'h0028002800280028;
+        quad_phase_array[1]  = 64'h0028002800280028;
+        quad_phase_array[2]  = 64'h0028002800280028;
+        quad_phase_array[3]  = 64'h0028002800280028;
+        quad_phase_array[4]  = 64'h001e001e001e001e;
+        quad_phase_array[5]  = 64'h001e001e001e001e;
+        quad_phase_array[6]  = 64'h001e001e001e001e;
+        quad_phase_array[7]  = 64'h001e001e001e001e;
+        quad_phase_array[8]  = 64'h0014001400140014;
+        quad_phase_array[9]  = 64'h0014001400140014;
+        quad_phase_array[10] = 64'h0014001400140014;
+        quad_phase_array[11] = 64'h0014001400140014;
+        quad_phase_array[12] = 64'h000a000a000a000a;
+        quad_phase_array[13] = 64'h000a000a000a000a;
+        quad_phase_array[14] = 64'h000a000a000a000a;
+        quad_phase_array[15] = 64'h000a000a000a000a;
+        
+        // Display header for the outputs.
+        $display("Index\tFFT_Out_In (16-bit)\tFFT_Out_Quad (16-bit)");
+        
+        // Loop through each index, drive the inputs, and display the outputs.
+        for (i = 0; i < 16; i = i + 1) begin
+            in_data_inphase = in_phase_array[i];
+            in_data_quad    = quad_phase_array[i];
+            #10; // Wait for outputs to update
+            $display("%0d\t%h\t\t\t%h", i, out_inphase, out_quad);
+        end
+        
+        $finish;
+    end
+
+endmodule
+
+
+DEMAPPER:
+
+`timescale 1ns/1ps
+module tb_qam16_demapper;
+
+  // Arrays to hold the 16-bit inputs for In-phase and Quad-phase.
+  reg [15:0] in_phase_array [0:15];
+  reg [15:0] quad_phase_array [0:15];
+
+  // Registers for driving the module inputs.
+  reg [15:0] in_phase_data;
+  reg [15:0] quad_phase_data;
+
+  // Wire to capture the 4-bit output.
+  wire [3:0] demapped_bits;
+
+  // Instantiate the demapper module.
+  qam16_demapper uut (
+    .in_phase(in_phase_data),
+    .quad_phase(quad_phase_data),
+    .demapped_bits(demapped_bits)
+  );
+
+  integer i;
+
+  initial begin
+    // Initialize the In-phase array (from your CSV table)
+    in_phase_array[0]  = 16'h0014;
+    in_phase_array[1]  = 16'h000a;
+    in_phase_array[2]  = 16'h0028;
+    in_phase_array[3]  = 16'h001e;
+    in_phase_array[4]  = 16'h0014;
+    in_phase_array[5]  = 16'h000a;
+    in_phase_array[6]  = 16'h0028;
+    in_phase_array[7]  = 16'h001e;
+    in_phase_array[8]  = 16'h0014;
+    in_phase_array[9]  = 16'h000a;
+    in_phase_array[10] = 16'h0028;
+    in_phase_array[11] = 16'h001e;
+    in_phase_array[12] = 16'h0014;
+    in_phase_array[13] = 16'h000a;
+    in_phase_array[14] = 16'h0028;
+    in_phase_array[15] = 16'h001e;
+
+    // Initialize the Quad-phase array (from your CSV table)
+    quad_phase_array[0]  = 16'h0028;
+    quad_phase_array[1]  = 16'h0028;
+    quad_phase_array[2]  = 16'h0028;
+    quad_phase_array[3]  = 16'h0028;
+    quad_phase_array[4]  = 16'h001e;
+    quad_phase_array[5]  = 16'h001e;
+    quad_phase_array[6]  = 16'h001e;
+    quad_phase_array[7]  = 16'h001e;
+    quad_phase_array[8]  = 16'h0014;
+    quad_phase_array[9]  = 16'h0014;
+    quad_phase_array[10] = 16'h0014;
+    quad_phase_array[11] = 16'h0014;
+    quad_phase_array[12] = 16'h000a;
+    quad_phase_array[13] = 16'h000a;
+    quad_phase_array[14] = 16'h000a;
+    quad_phase_array[15] = 16'h000a;
+
+    // Display header
+    $display("Index\tIn-phase\tQuad-phase\tdemapped_bits");
+    // Loop through all 16 indices.
+    for (i = 0; i < 16; i = i + 1) begin
+      in_phase_data  = in_phase_array[i];
+      quad_phase_data = quad_phase_array[i];
+      #10; // allow time for combinatorial logic to settle
+      $display("%0d\t%h\t\t%h\t\t%04b", i, in_phase_data, quad_phase_data, demapped_bits);
+    end
+
+    $finish;
+  end
+
+endmodule
+
+
+TOP RECEIVER:
+
+`timescale 1ns/1ps
+module receiver_top_all_tb;
+  // Input: 304-bit symbol (includes cyclic prefix)
+  reg [303:0] symbol_out;
+  
+  // Wires for all intermediate outputs
+  wire [127:0] I_FFT, Q_FFT;
+  wire [127:0] fft_out_I, fft_out_Q;
+  wire [63:0]  zero_padded_I, zero_padded_Q;
+  wire [15:0]  symbol_I, symbol_Q;
+  wire [3:0]   demapped_bits;
+  
+  // Instantiate the top-level receiver module
+  receiver_top_all uut (
+    .symbol_out(symbol_out),
+    .I_FFT(I_FFT),
+    .Q_FFT(Q_FFT),
+    .fft_out_I(fft_out_I),
+    .fft_out_Q(fft_out_Q),
+    .zero_padded_I(zero_padded_I),
+    .zero_padded_Q(zero_padded_Q),
+    .symbol_I(symbol_I),
+    .symbol_Q(symbol_Q),
+    .demapped_bits(demapped_bits)
+  );
+  
+  // Dump waveforms to VCD file for inspection
+  initial begin
+    $dumpfile("receiver_top_all.vcd");
+    $dumpvars(0, receiver_top_all_tb);
+  end
+  
+  // Define an array of 16 test vectors (304-bit each)
+  // Each test vector is constructed so that:
+  // - The 128-bit I_FFT portion (bits [255:128]) has word2 = desired symbol_I
+  // - The 128-bit Q_FFT portion (bits [127:0]) has word2 = desired symbol_Q
+  // For example, to obtain symbol_I = 16'h0014, we embed 0014 in bits [47:32] of the I_FFT portion.
+  reg [303:0] test_vectors [0:15];
+  integer i;
+  
+  initial begin
+    // Here are example test vectors.
+    // (They are built so that after the inverse cyclic prefix and FFT processing,
+    // the active value extracted becomes the desired symbol. You may need to adjust
+    // these values in your design.)
+    test_vectors[0]  = 304'hXXXX_XXXX_XXXX_001400140014XXXX; // I_FFT active = 0014, Q_FFT active = 0028
+                     // (You can use a constant filler for nonactive bits.)
+                     // For brevity, we write in one hexadecimal string.
+                     // For example, assume we fill the upper 48 bits with zeros.
+                     // One possible vector: {48'b0, 16'h0014, 16'h0014, 16'h0014, 16'h0014} for I_FFT
+                     // and similar for Q_FFT.
+    // For clarity, we precompute each vector as:
+    // Format: symbol_out = {padding[47:0], I_FFT (128 bits), Q_FFT (128 bits)}
+    // We choose padding = 48'b0.
+    // And for I_FFT, we want word2 = desired symbol_I.
+    // Since fft8_constant ignores most bits except word2, we can simply set the 128-bit I_FFT value as:
+    // I_FFT = {16'h0000, 16'h0000, symbol_I, symbol_I, symbol_I, symbol_I, 16'h0000, 16'h0000}
+    // Then our test vector becomes:
+    // symbol_out = {48'b0, I_FFT, Q_FFT}
+    // Let's define the desired final symbols as:
+    // For index 0: symbol_I = 16'h0014, symbol_Q = 16'h0028  → demapped = 0000
+    // Index 1: symbol_I = 16'h000a, symbol_Q = 16'h0028          → 0001
+    // Index 2: symbol_I = 16'h0028, symbol_Q = 16'h0028          → 0010
+    // Index 3: symbol_I = 16'h001e, symbol_Q = 16'h0028          → 0011
+    // Index 4: symbol_I = 16'h0014, symbol_Q = 16'h001e          → 0100
+    // Index 5: symbol_I = 16'h000a, symbol_Q = 16'h001e          → 0101
+    // Index 6: symbol_I = 16'h0028, symbol_Q = 16'h001e          → 0110
+    // Index 7: symbol_I = 16'h001e, symbol_Q = 16'h001e          → 0111
+    // Index 8: symbol_I = 16'h0014, symbol_Q = 16'h0014          → 1000
+    // Index 9: symbol_I = 16'h000a, symbol_Q = 16'h0014          → 1001
+    // Index 10: symbol_I = 16'h0028, symbol_Q = 16'h0014         → 1010
+    // Index 11: symbol_I = 16'h001e, symbol_Q = 16'h0014         → 1011
+    // Index 12: symbol_I = 16'h0014, symbol_Q = 16'h000a         → 1100
+    // Index 13: symbol_I = 16'h000a, symbol_Q = 16'h000a         → 1101
+    // Index 14: symbol_I = 16'h0028, symbol_Q = 16'h000a         → 1110
+    // Index 15: symbol_I = 16'h001e, symbol_Q = 16'h000a         → 1111
+    //
+    // We then build I_FFT and Q_FFT for each test vector using the fft8_constant input format:
+    // Let I_FFT_in = {16'h0000, 16'h0000, symbol_I, symbol_I, symbol_I, symbol_I, 16'h0000, 16'h0000}
+    // and Q_FFT_in = {16'h0000, 16'h0000, symbol_Q, symbol_Q, symbol_Q, symbol_Q, 16'h0000, 16'h0000}.
+    // Finally, symbol_out = {48'b0, I_FFT_in, Q_FFT_in}.
+    //
+    // For brevity, we precompute the hexadecimal representation:
+    test_vectors[0]  = {48'b0,
+                        128'h00000000001400140014001400000000,  // I_FFT_in: active = 0014
+                        128'h00000000002800280028002800000000}; // Q_FFT_in: active = 0028
+    test_vectors[1]  = {48'b0,
+                        128'h00000000000a000a000a000a00000000,  // active = 000a
+                        128'h00000000002800280028002800000000}; // active = 0028  → 0001
+    test_vectors[2]  = {48'b0,
+                        128'h00000000002800280028002800000000,  // active = 0028
+                        128'h00000000002800280028002800000000}; // active = 0028  → 0010
+    test_vectors[3]  = {48'b0,
+                        128'h00000000001e001e001e001e00000000,  // active = 001e
+                        128'h00000000002800280028002800000000}; // active = 0028  → 0011
+    test_vectors[4]  = {48'b0,
+                        128'h00000000001400140014001400000000,  // active = 0014
+                        128'h00000000001e001e001e001e00000000}; // active = 001e  → 0100
+    test_vectors[5]  = {48'b0,
+                        128'h00000000000a000a000a000a00000000,  // active = 000a
+                        128'h00000000001e001e001e001e00000000}; // active = 001e  → 0101
+    test_vectors[6]  = {48'b0,
+                        128'h00000000002800280028002800000000,  // active = 0028
+                        128'h00000000001e001e001e001e00000000}; // active = 001e  → 0110
+    test_vectors[7]  = {48'b0,
+                        128'h00000000001e001e001e001e00000000,  // active = 001e
+                        128'h00000000001e001e001e001e00000000}; // active = 001e  → 0111
+    test_vectors[8]  = {48'b0,
+                        128'h00000000001400140014001400000000,  // active = 0014
+                        128'h00000000001400140014001400000000}; // active = 0014  → 1000
+    test_vectors[9]  = {48'b0,
+                        128'h00000000000a000a000a000a00000000,  // active = 000a
+                        128'h00000000001400140014001400000000}; // active = 0014  → 1001
+    test_vectors[10] = {48'b0,
+                        128'h00000000002800280028002800000000,  // active = 0028
+                        128'h00000000001400140014001400000000}; // active = 0014  → 1010
+    test_vectors[11] = {48'b0,
+                        128'h00000000001e001e001e001e00000000,  // active = 001e
+                        128'h00000000001400140014001400000000}; // active = 0014  → 1011
+    test_vectors[12] = {48'b0,
+                        128'h00000000001400140014001400000000,  // active = 0014
+                        128'h00000000000a000a000a000a00000000}; // active = 000a  → 1100
+    test_vectors[13] = {48'b0,
+                        128'h00000000000a000a000a000a00000000,  // active = 000a
+                        128'h00000000000a000a000a000a00000000}; // active = 000a  → 1101
+    test_vectors[14] = {48'b0,
+                        128'h00000000002800280028002800000000,  // active = 0028
+                        128'h00000000000a000a000a000a00000000}; // active = 000a  → 1110
+    test_vectors[15] = {48'b0,
+                        128'h00000000001e001e001e001e00000000,  // active = 001e
+                        128'h00000000000a000a000a000a00000000}; // active = 000a  → 1111
+    
+    // Cycle through all test vectors
+    for (i = 0; i < 16; i = i + 1) begin
+      symbol_out = test_vectors[i];
+      #50;  // Wait for signals to settle
+      
+      // Display all intermediate outputs
+      $display("=== Test Vector %0d at time %0t ===", i, $time);
+      $display("Inverse Cyclic Prefix: I_FFT = %032h, Q_FFT = %032h", I_FFT, Q_FFT);
+      $display("FFT Output:            fft_out_I = %032h, fft_out_Q = %032h", fft_out_I, fft_out_Q);
+      $display("Zero Pad Removal:      zero_padded_I = %016h, zero_padded_Q = %016h", zero_padded_I, zero_padded_Q);
+      $display("Inverse Symbol Gen:    symbol_I = %04h, symbol_Q = %04h", symbol_I, symbol_Q);
+      $display("QAM16 Demapper:        demapped_bits = %04b", demapped_bits);
+      $display("");
+    end
+    
+    #20;
+    $finish;
+  end
+endmodule
+
+
+
